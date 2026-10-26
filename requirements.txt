@@ -1,0 +1,8 @@
+ultralytics>=8.3.0
+kagglehub
+opencv-python-headless
+pillow
+pandas
+fastapi
+uvicorn[standard]
+python-multipart

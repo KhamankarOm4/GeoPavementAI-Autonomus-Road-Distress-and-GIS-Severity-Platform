@@ -1,0 +1,3085 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoPavement AI — Autonomous Road Distress &amp; GIS Severity Platform</title>
+
+<!-- External Stylesheets & Fonts -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM & THEME TOKENS
+══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg-app:        #080b12;
+  --bg-sidebar:    #0c101a;
+  --bg-card:       #111624;
+  --bg-card-hover: #161c2d;
+  --bg-input:      #141a2b;
+  --bg-elevated:   #1a2238;
+
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-light:  rgba(255, 255, 255, 0.12);
+  --border-focus:  #3b82f6;
+
+  --text-main:     #f8fafc;
+  --text-muted:    #94a3b8;
+  --text-dim:      #64748b;
+
+  --brand-blue:    #3b82f6;
+  --brand-cyan:    #06b6d4;
+  --brand-indigo:  #6366f1;
+
+  --sev-high:      #ef4444;
+  --sev-high-bg:   rgba(239, 68, 68, 0.12);
+  --sev-high-bd:   rgba(239, 68, 68, 0.3);
+
+  --sev-med:       #f59e0b;
+  --sev-med-bg:    rgba(245, 158, 11, 0.12);
+  --sev-med-bd:    rgba(245, 158, 11, 0.3);
+
+  --sev-low:       #10b981;
+  --sev-low-bg:    rgba(16, 185, 129, 0.12);
+  --sev-low-bd:    rgba(16, 185, 129, 0.3);
+
+  --sidebar-w:     250px;
+  --radius-sm:     6px;
+  --radius-md:     10px;
+  --radius-lg:     14px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; color-scheme: dark; }
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-app); }
+::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-blue); }
+
+/* ── App Shell / Sidebar ──────────────────────────────────────────────── */
+#app-sidebar {
+  width: var(--sidebar-w);
+  min-height: 100vh;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; z-index: 1000;
+  user-select: none;
+}
+.sidebar-brand {
+  padding: 22px 18px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-logo-badge {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+}
+.brand-title {
+  font-size: 15px; font-weight: 800; letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #ffffff, #cbd5e1);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.brand-subtitle {
+  font-size: 10.5px; color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.08em; font-weight: 600; margin-top: 1px;
+}
+.project-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #60a5fa; font-size: 10px; font-weight: 600; padding: 2px 7px;
+  border-radius: 4px; margin-top: 10px;
+}
+.project-tag::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%; background: #60a5fa;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav-section-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--text-dim);
+  padding: 12px 12px 4px; margin-top: 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 12px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; border: none; background: transparent; text-align: left;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%; position: relative;
+}
+.nav-item:hover {
+  background: var(--bg-card); color: var(--text-main);
+}
+.nav-item.active {
+  background: rgba(59, 130, 246, 0.14);
+  color: #60a5fa;
+  font-weight: 700;
+}
+.nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+  width: 3px; background: var(--brand-blue); border-radius: 0 3px 3px 0;
+}
+.nav-item svg {
+  flex-shrink: 0; opacity: 0.7;
+}
+.nav-item.active svg {
+  opacity: 1; stroke: #60a5fa;
+}
+
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.2);
+}
+.system-status {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11.5px;
+}
+.status-indicator {
+  display: flex; align-items: center; gap: 7px; color: var(--sev-low); font-weight: 600;
+}
+.status-pulse {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--sev-low);
+  box-shadow: 0 0 8px var(--sev-low);
+  animation: pulse-ring 2s infinite;
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* ── Main Content Area ────────────────────────────────────────────────── */
+#main-viewport {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Page Views */
+.view-panel {
+  display: none;
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: 40px;
+}
+.view-panel.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Page Headers */
+.view-header {
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(12, 16, 26, 0.6);
+  backdrop-filter: blur(16px);
+  position: sticky; top: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.view-title-block h2 {
+  font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #fff;
+}
+.view-title-block p {
+  font-size: 12.5px; color: var(--text-muted); margin-top: 2px;
+}
+.view-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+/* Container Padding */
+.view-container {
+  padding: 24px 32px;
+}
+
+/* ── Modern Card Containers ───────────────────────────────────────────── */
+.card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  position: relative;
+}
+.card-box.hoverable {
+  transition: all 0.2s ease;
+}
+.card-box.hoverable:hover {
+  border-color: var(--border-light);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+.card-box-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(255, 255, 255, 0.015);
+}
+.card-box-title {
+  font-size: 12.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-box-body {
+  padding: 20px;
+}
+
+/* ── Grid Layouts ─────────────────────────────────────────────────────── */
+.grid-cols-4 {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+}
+.grid-cols-3 {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.grid-cols-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.grid-detect {
+  display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px;
+}
+@media(max-width: 1200px) {
+  .grid-detect { grid-template-columns: 1fr; }
+  .grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3 { grid-template-columns: 1fr; }
+}
+@media(max-width: 768px) {
+  .grid-cols-4, .grid-cols-2 { grid-template-columns: 1fr; }
+  .view-container { padding: 16px; }
+  .view-header { padding: 16px; }
+}
+
+/* ── Metric Stat Cards ────────────────────────────────────────────────── */
+.kpi-card {
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.kpi-card.blue::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.kpi-card.red::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+.kpi-card.amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.kpi-card.green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+
+.kpi-label {
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-dim);
+}
+.kpi-number {
+  font-size: 32px; font-weight: 800; letter-spacing: -0.03em;
+  font-family: 'JetBrains Mono', monospace; line-height: 1.1; margin-top: 8px;
+}
+.kpi-detail {
+  font-size: 12px; color: var(--text-muted); margin-top: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.kpi-icon-float {
+  position: absolute; right: 18px; top: 18px;
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+}
+.kpi-card.blue .kpi-icon-float { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+.kpi-card.red .kpi-icon-float { background: var(--sev-high-bg); color: var(--sev-high); }
+.kpi-card.amber .kpi-icon-float { background: var(--sev-med-bg); color: var(--sev-med); }
+.kpi-card.green .kpi-icon-float { background: var(--sev-low-bg); color: var(--sev-low); }
+
+/* ── Buttons & UI Controls ────────────────────────────────────────────── */
+.btn-core {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 7px; padding: 8px 14px; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none; user-select: none;
+}
+.btn-core:active { transform: scale(0.98); }
+.btn-core:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+}
+
+.btn-secondary {
+  background: var(--bg-elevated); color: var(--text-main);
+  border: 1px solid var(--border-light);
+}
+.btn-secondary:hover {
+  background: var(--bg-card-hover); border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-danger {
+  background: var(--sev-high-bg); color: var(--sev-high);
+  border: 1px solid var(--sev-high-bd);
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.22);
+}
+
+.btn-sm {
+  padding: 5px 10px; font-size: 12px;
+}
+.btn-icon-square {
+  width: 32px; height: 32px; padding: 0;
+}
+
+/* ── Form Elements ────────────────────────────────────────────────────── */
+.form-group {
+  margin-bottom: 16px;
+}
+.form-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg-input); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); color: var(--text-main);
+  font-family: inherit; font-size: 13px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-input:focus {
+  outline: none; border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+.form-input::placeholder { color: var(--text-dim); }
+
+/* Range Slider */
+input[type=range] {
+  width: 100%; accent-color: var(--brand-blue); cursor: pointer;
+  height: 6px; background: var(--bg-elevated); border-radius: 3px;
+}
+
+/* ── Upload Drag & Drop Zone ──────────────────────────────────────────── */
+.upload-dropzone {
+  border: 2px dashed rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  padding: 30px 20px; text-align: center;
+  background: rgba(20, 26, 43, 0.5);
+  cursor: pointer; position: relative;
+  transition: all 0.2s ease;
+}
+.upload-dropzone:hover, .upload-dropzone.drag-active {
+  border-color: var(--brand-blue);
+  background: rgba(59, 130, 246, 0.08);
+}
+.upload-dropzone input[type=file] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer;
+}
+.upload-icon-circle {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--bg-elevated); border: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px; color: var(--brand-blue);
+}
+.upload-dropzone-title {
+  font-size: 14px; font-weight: 700; color: var(--text-main);
+}
+.upload-dropzone-desc {
+  font-size: 12px; color: var(--text-dim); margin-top: 4px;
+}
+
+/* Image preview in upload box */
+.upload-file-preview {
+  display: none; align-items: center; gap: 12px;
+  padding: 10px 14px; background: var(--bg-elevated);
+  border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+  margin-top: 12px;
+}
+.upload-thumb {
+  width: 44px; height: 44px; border-radius: 4px;
+  object-fit: cover; border: 1px solid var(--border-subtle);
+}
+
+/* ── Linked Location Banner ───────────────────────────────────────────── */
+.location-lock-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  margin-bottom: 16px;
+}
+.location-lock-banner.empty-state {
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.lock-icon {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15); color: var(--sev-low);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.lock-icon.blue {
+  background: rgba(59, 130, 246, 0.15); color: #60a5fa;
+}
+.lock-info-primary {
+  font-size: 13px; font-weight: 700; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lock-info-coords {
+  font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);
+}
+
+/* ── Interactive Map Styles & Layer Controls ──────────────────────────── */
+.map-canvas-container {
+  height: 480px; width: 100%; position: relative;
+  border-radius: var(--radius-sm); overflow: hidden;
+}
+.map-toolbar-overlay {
+  position: absolute; top: 12px; left: 12px; z-index: 1000;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(12, 16, 26, 0.88); backdrop-filter: blur(8px);
+  padding: 4px 6px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+.map-search-container {
+  position: absolute; top: 12px; right: 12px; z-index: 1000;
+  display: flex; align-items: center;
+  background: rgba(12, 16, 26, 0.92); backdrop-filter: blur(8px);
+  border-radius: var(--radius-sm); border: 1px solid var(--border-light);
+  overflow: hidden; width: 280px;
+}
+.map-search-input {
+  flex: 1; padding: 7px 10px; background: transparent; border: none;
+  color: #fff; font-size: 12px; outline: none;
+}
+.map-search-btn {
+  padding: 7px 10px; background: var(--brand-blue); border: none;
+  color: #fff; cursor: pointer; display: flex; align-items: center;
+}
+
+/* Custom Marker Pins */
+.custom-picker-pin {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--brand-blue); border: 3px solid #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4), 0 4px 12px rgba(0,0,0,0.5);
+  animation: marker-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes marker-bounce {
+  0% { transform: translateY(-20px) scale(0.6); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.map-marker-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid #ffffff; box-shadow: 0 0 10px rgba(0,0,0,0.6);
+  cursor: pointer; transition: transform 0.15s ease;
+}
+.map-marker-dot:hover { transform: scale(1.3); }
+
+.map-marker-dot.highlight-pulse {
+  animation: marker-pulse-glow 1.4s infinite;
+  z-index: 1000 !important;
+}
+@keyframes marker-pulse-glow {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.9); }
+  70% { transform: scale(1.5); box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+/* ── PDF Dossier Modal & Document Styles ── */
+#pdf-dossier-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(4, 7, 14, 0.88);
+  backdrop-filter: blur(8px);
+  overflow-y: auto;
+  padding: 24px 16px;
+  align-items: flex-start;
+  justify-content: center;
+}
+#pdf-dossier-modal.active {
+  display: flex;
+}
+.pdf-modal-wrapper {
+  width: 100%;
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.pdf-modal-toolbar {
+  background: #111624;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+.pdf-document {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 6px;
+  padding: 40px 48px;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
+  line-height: 1.5;
+}
+.pdf-document * {
+  box-sizing: border-box;
+}
+.pdf-header-banner {
+  border-bottom: 3px solid #0f172a;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.pdf-org-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+.pdf-doc-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+.pdf-doc-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.pdf-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+}
+.pdf-meta-cell-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+.pdf-meta-cell-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+.pdf-img-container {
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  background: #000;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.pdf-img-container img {
+  width: 100%;
+  max-height: 380px;
+  object-fit: contain;
+  display: block;
+}
+.pdf-section-title {
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f172a;
+  margin-bottom: 10px;
+  border-left: 4px solid #2563eb;
+  padding-left: 8px;
+}
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 24px;
+}
+.pdf-table th {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.pdf-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+.pdf-table tr:nth-child(even) td {
+  background: #f8fafc;
+}
+.pdf-advisory-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #3b82f6;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: #1e3a8a;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+.pdf-sign-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid #cbd5e1;
+}
+.pdf-sign-box {
+  width: 200px;
+  text-align: center;
+}
+.pdf-sign-line {
+  height: 40px;
+  border-bottom: 1px dashed #64748b;
+  margin-bottom: 6px;
+}
+.pdf-sign-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #pdf-dossier-modal, #pdf-dossier-modal * {
+    visibility: visible;
+  }
+  #pdf-dossier-modal {
+    position: absolute;
+    inset: 0;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  .pdf-modal-wrapper {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  .pdf-modal-toolbar, .no-print {
+    display: none !important;
+  }
+  .pdf-document {
+    padding: 20px !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
+/* Custom Leaflet Popups */
+.leaflet-popup-content-wrapper {
+  background: #111624 !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+.leaflet-popup-tip-container { display: none; }
+.leaflet-popup-content {
+  margin: 0 !important; min-width: 260px !important;
+}
+.popup-hero-img {
+  width: 100%; height: 140px; object-fit: cover; display: block;
+  cursor: pointer; border-bottom: 1px solid var(--border-subtle);
+}
+.popup-body {
+  padding: 14px 16px;
+}
+.popup-badge-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.popup-meta-item {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--text-muted); padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.popup-meta-item:last-child { border-bottom: none; }
+.popup-meta-item strong { color: var(--text-main); font-weight: 600; }
+
+/* ── Badges & Chips ───────────────────────────────────────────────────── */
+.badge-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2.5px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; line-height: 1.2;
+}
+.badge-tag.high {
+  background: var(--sev-high-bg); color: var(--sev-high); border: 1px solid var(--sev-high-bd);
+}
+.badge-tag.med {
+  background: var(--sev-med-bg); color: var(--sev-med); border: 1px solid var(--sev-med-bd);
+}
+.badge-tag.low {
+  background: var(--sev-low-bg); color: var(--sev-low); border: 1px solid var(--sev-low-bd);
+}
+.badge-tag.neutral {
+  background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border-light);
+}
+
+/* ── Data Tables ──────────────────────────────────────────────────────── */
+.table-responsive {
+  width: 100%; overflow-x: auto;
+}
+table.enterprise-table {
+  width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;
+}
+table.enterprise-table thead th {
+  padding: 11px 16px; background: rgba(255, 255, 255, 0.02);
+  color: var(--text-dim); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  border-bottom: 1px solid var(--border-subtle); white-space: nowrap;
+}
+table.enterprise-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.12s ease;
+}
+table.enterprise-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+table.enterprise-table tbody td {
+  padding: 12px 16px; vertical-align: middle;
+}
+.table-row-thumb {
+  width: 48px; height: 36px; object-fit: cover; border-radius: 4px;
+  border: 1px solid var(--border-subtle); cursor: pointer; display: block;
+}
+.table-row-thumb:hover { opacity: 0.8; }
+
+/* ── Lightbox Modal ───────────────────────────────────────────────────── */
+#lightbox-modal {
+  display: none; position: fixed; inset: 0; z-index: 99999;
+  background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px);
+  align-items: center; justify-content: center;
+}
+#lightbox-modal.active { display: flex; }
+#lightbox-modal-img {
+  max-width: 90vw; max-height: 85vh; border-radius: var(--radius-md);
+  border: 1px solid var(--border-light); box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+}
+.modal-close-btn {
+  position: absolute; top: 20px; right: 28px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer;
+}
+
+/* ── Toast Notifications ──────────────────────────────────────────────── */
+#toast-shelf {
+  position: fixed; bottom: 24px; right: 24px; z-index: 10000;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.toast-bubble {
+  min-width: 260px; padding: 12px 16px; border-radius: var(--radius-sm);
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; gap: 10px; color: #fff;
+  transform: translateY(20px); opacity: 0; transition: all 0.25s ease;
+}
+.toast-bubble.show {
+  transform: translateY(0); opacity: 1; pointer-events: auto;
+}
+.toast-bubble.success { border-color: rgba(16, 185, 129, 0.4); }
+.toast-bubble.error { border-color: rgba(239, 68, 68, 0.4); }
+
+/* ── Top Loading Bar ──────────────────────────────────────────────────── */
+#action-progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0;
+  background: linear-gradient(90deg, #3b82f6, #06b6d4);
+  z-index: 10000; transition: width 0.3s ease;
+}
+
+/* ── Miscellaneous & Helpers ─────────────────────────────────────────── */
+.mono-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.text-muted { color: var(--text-muted); }
+.text-dim { color: var(--text-dim); }
+.gap-8 { gap: 8px; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<div id="action-progress-bar"></div>
+<div id="toast-shelf"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SIDEBAR NAVIGATION (FINAL YEAR / ENTERPRISE DESK)
+══════════════════════════════════════════════════════════════════════════ -->
+<aside id="app-sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-row">
+      <div class="brand-logo-badge">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M4 17l5-11 5 6 3-4 3 9"/><line x1="3" y1="20" x2="21" y2="20"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">GeoPavement AI</div>
+        <div class="brand-subtitle">Road Asset Intel</div>
+      </div>
+    </div>
+    <div class="project-tag">Final Year Capstone · BE Project</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">Core Operations</div>
+    <button class="nav-item active" data-target="overview" onclick="switchView('overview', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+      </svg>
+      Executive Overview
+    </button>
+    <button class="nav-item" data-target="detect" onclick="switchView('detect', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+      </svg>
+      Inspect &amp; Pin (Detect)
+    </button>
+
+    <div class="nav-section-title">GIS &amp; Field Records</div>
+    <button class="nav-item" data-target="map" onclick="switchView('map', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="1,6 1,22 8,18 16,22 23,18 23,2 16,6 8,2"/>
+        <line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>
+      </svg>
+      GIS Survey Map
+    </button>
+    <button class="nav-item" data-target="reports" onclick="switchView('reports', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+      </svg>
+      Inspection Log
+    </button>
+    <button class="nav-item" data-target="analytics" onclick="switchView('analytics', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+      </svg>
+      Analytics &amp; Intelligence
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="system-status">
+      <div class="status-indicator">
+        <span class="status-pulse"></span>
+        <span>YOLOv8 Engine Active</span>
+      </div>
+      <span class="mono-text" style="color:var(--text-dim)">v2.4</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MAIN VIEWPORT
+══════════════════════════════════════════════════════════════════════════ -->
+<main id="main-viewport">
+
+  <!-- ────────────────────────────────────────────────────────────────────────
+       VIEW: EXECUTIVE OVERVIEW
+  ──────────────────────────────────────────────────────────────────────── -->
+  <section id="view-overview" class="view-panel active">
+    <header class="view-header">
+      <div class="view-title-block">
+        <h2>Executive Dashboard</h2>
+        <p id="overview-datetime">Pavement condition monitoring &amp; distress classification overview</p>
+      </div>
+      <div class="view-actions">
+        <button class="btn-core btn-secondary btn-sm" onclick="generateAuditPDF()">
+          📄 Export Audit PDF
+        </button>
+        <button class="btn-core btn-primary btn-sm" onclick="switchView('detect')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Road Inspection
+        </button>
+      </div>
+    </header>
+
+    <div class="view-container">
+      <!-- KPI Row -->
+      <div class="grid-cols-4" style="margin-bottom:20px">
+        <div class="kpi-card blue">
+          <div class="kpi-icon-float">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          </div>
+          <div class="kpi-label">Total Survey Logs</div>
+          <div class="kpi-number" id="kpi-total-surveys">0</div>
+          <div class="kpi-detail">Geo-tagged inspection entries</div>
+        </div>
+
+        <div class="kpi-card red">
+          <div class="kpi-icon-float">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="kpi-label">High Severity Hazards</div>
+          <div class="kpi-number" id="kpi-high-severity">0</div>
+          <div class="kpi-detail">Immediate patch intervention needed</div>
+        </div>
+
+        <div class="kpi-card amber">
+          <div class="kpi-icon-float">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="kpi-label">Potholes Detected</div>
+          <div class="kpi-number" id="kpi-potholes-count">0</div>
+          <div class="kpi-detail">Class D40 structural depressions</div>
+        </div>
+
+        <div class="kpi-card green">
+          <div class="kpi-icon-float">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+          </div>
+          <div class="kpi-label">Low / Moderate Sites</div>
+          <div class="kpi-number" id="kpi-low-severity">0</div>
+          <div class="kpi-detail">Routine maintenance queue</div>
+        </div>
+      </div>
+
+      <!-- Center Split: Recent Inspections + Mini Map Preview -->
+      <div class="grid-cols-2">
+        <div class="card-box">
+          <div class="card-box-header">
+            <div class="card-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              Recent Inspection Feed
+            </div>
+            <button class="btn-core btn-secondary btn-sm" onclick="switchView('reports')">View All</button>
+          </div>
+          <div id="overview-feed-list" style="max-height: 380px; overflow-y: auto;">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="card-box-header">
+            <div class="card-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1,6 1,22 8,18 16,22 23,18 23,2 16,6 8,2"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+              GIS Spatial Distribution
+            </div>
+            <button class="btn-core btn-secondary btn-sm" onclick="switchView('map')">Open GIS Studio</button>
+          </div>
+          <div id="overview-mini-map" style="height: 380px; width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────────
+       VIEW: INSPECT & PIN (DETECT) — THE CORE WORKFLOW
+  ──────────────────────────────────────────────────────────────────────── -->
+  <section id="view-detect" class="view-panel">
+    <header class="view-header">
+      <div class="view-title-block">
+        <h2>Pavement Distress Detection Studio</h2>
+        <p>1. Select road location on map → 2. Upload road photo → 3. Neural inference links image with GPS</p>
+      </div>
+    </header>
+
+    <div class="view-container">
+      <div class="grid-detect">
+
+        <!-- LEFT COLUMN: MAP PIN PICKER & RESULTS -->
+        <div>
+          <!-- Step 1: Map Location Selection -->
+          <div class="card-box" style="margin-bottom: 20px;">
+            <div class="card-box-header">
+              <div class="card-box-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+                Step 1: Pick Road Coordinates on Map
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button class="btn-core btn-secondary btn-sm" id="btn-device-gps" title="Get precise device GPS">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                  My GPS
+                </button>
+                <button class="btn-core btn-secondary btn-sm" id="btn-clear-pin" style="display:none;" onclick="resetLocationPin()">
+                  Reset Pin
+                </button>
+              </div>
+            </div>
+
+            <!-- Map Picker Canvas -->
+            <div style="position: relative;">
+              <div id="picker-map-canvas" style="height: 400px; width:100%;"></div>
+              
+              <!-- Search overlay on map -->
+              <div class="map-search-container">
+                <input type="text" id="map-search-query" class="map-search-input" placeholder="Search road, city, area (e.g. Pune)...">
+                <button type="button" class="map-search-btn" onclick="executeMapSearch()" title="Search location">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+              </div>
+
+              <!-- Base Layer Switcher Pills -->
+              <div class="map-toolbar-overlay">
+                <button class="btn-core btn-secondary btn-sm" style="padding: 3px 8px; font-size: 11px;" onclick="changePickerLayer('street')">🗺️ Street</button>
+                <button class="btn-core btn-secondary btn-sm" style="padding: 3px 8px; font-size: 11px;" onclick="changePickerLayer('satellite')">🛰️ Satellite</button>
+                <button class="btn-core btn-secondary btn-sm" style="padding: 3px 8px; font-size: 11px;" onclick="changePickerLayer('dark')">🌙 Dark</button>
+              </div>
+            </div>
+
+            <!-- Selected Location Badge -->
+            <div style="padding: 12px 18px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--border-subtle); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+              <div>
+                <span class="text-dim" style="font-size:11px; font-weight:700; text-transform:uppercase;">Selected Coordinates:</span>
+                <div id="picker-coords-readout" class="mono-text" style="font-weight:600; color:var(--text-main); margin-top:2px;">
+                  Click anywhere on the map or search to place pin
+                </div>
+              </div>
+              <div id="picker-address-readout" style="font-size:12px; color:#60a5fa; max-width:300px; text-align:right;"></div>
+            </div>
+          </div>
+
+          <!-- Step 3: Analysis Results Box (Initially hidden) -->
+          <div id="detection-result-card" class="card-box" style="display: none;">
+            <div class="card-box-header">
+              <div class="card-box-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                AI Model Detection Result
+              </div>
+              <div id="result-severity-pill"></div>
+            </div>
+            
+            <div style="position:relative; background:#000; text-align:center; cursor:pointer;" onclick="expandLightboxModal(document.getElementById('result-annotated-img').src)">
+              <img id="result-annotated-img" style="max-height: 420px; width: 100%; object-fit: contain; display: block;" alt="Detection Result">
+              <div style="position:absolute; bottom:10px; right:12px; background:rgba(0,0,0,0.75); color:#fff; font-size:11px; padding:3px 8px; border-radius:4px; pointer-events:none;">
+                🔍 Click to zoom full-res
+              </div>
+            </div>
+
+            <div class="card-box-body">
+              <!-- Linked Location & Road Tag Badge -->
+              <div id="result-location-badge" style="display:none; align-items:center; gap:10px; padding:10px 14px; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.28); border-radius:6px; margin-bottom:14px;">
+                <span style="font-size:18px;">📍</span>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:10.5px; text-transform:uppercase; font-weight:700; color:#60a5fa; letter-spacing:0.05em;">Linked Survey Location &amp; Name Tag</div>
+                  <div id="result-location-name-text" style="font-size:13.5px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                  <div id="result-location-coords-text" class="mono-text text-dim" style="font-size:11px; margin-top:2px;"></div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+                <div id="result-summary-text" style="font-size: 13.5px; font-weight: 600;"></div>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn-core btn-secondary btn-sm" id="btn-export-detect-pdf" style="display:none;">
+                    📄 Export PDF Dossier
+                  </button>
+                  <button class="btn-core btn-primary btn-sm" id="btn-jump-survey-map">
+                    🗺️ View on GIS Survey Map
+                  </button>
+                </div>
+              </div>
+
+              <!-- Detections Table -->
+              <div class="table-responsive">
+                <table class="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th>Distress Classification</th>
+                      <th>Confidence Score</th>
+                      <th>Severity Rating</th>
+                      <th>Relative Area Ratio</th>
+                    </tr>
+                  </thead>
+                  <tbody id="result-detections-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: UPLOAD & INFERENCE FORM -->
+        <div>
+          <div class="card-box">
+            <div class="card-box-header">
+              <div class="card-box-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Step 2: Upload Road Surface Photo
+              </div>
+            </div>
+            
+            <div class="card-box-body">
+              <form id="road-detect-form">
+
+                <!-- Location Link Indicator -->
+                <div id="location-status-banner" class="location-lock-banner empty-state">
+                  <div class="lock-icon blue" id="lock-icon-el">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  </div>
+                  <div style="flex:1; min-width:0;">
+                    <div class="lock-info-primary" id="lock-title-text">No Location Pinned</div>
+                    <div class="lock-info-coords" id="lock-subtitle-text">Click the map on the left to pin exact road location</div>
+                  </div>
+                </div>
+
+                <!-- Hidden inputs for Coordinates -->
+                <input type="hidden" id="field-lat" name="lat">
+                <input type="hidden" id="field-lon" name="lon">
+                <input type="hidden" id="field-location-name" name="location_name">
+
+                <!-- Optional manual locality name / road tag -->
+                <div class="form-group">
+                  <label class="form-label" for="field-road-tag">
+                    Road / Landmark Label (Optional)
+                  </label>
+                  <input type="text" id="field-road-tag" class="form-input" placeholder="e.g. Pune-Bangalore Highway KM 42, Senapati Bapat Road">
+                </div>
+
+                <!-- Drag & Drop Photo Box -->
+                <div class="form-group">
+                  <div class="form-label">Road Photo (JPEG / PNG)</div>
+                  <div class="upload-dropzone" id="upload-zone-box">
+                    <input type="file" id="road-file-input" accept="image/*" required>
+                    <div class="upload-icon-circle">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21,15 16,10 5,21"/>
+                      </svg>
+                    </div>
+                    <div class="upload-dropzone-title" id="dropzone-text-title">Drag &amp; drop road photo or browse</div>
+                    <div class="upload-dropzone-desc" id="dropzone-text-sub">Supports smartphone &amp; dashcam inspection images (EXIF auto-detected)</div>
+                  </div>
+
+                  <!-- Selected File Bar -->
+                  <div class="upload-file-preview" id="file-selection-preview">
+                    <img id="file-preview-img" class="upload-thumb" src="" alt="Thumbnail">
+                    <div style="flex:1; min-width:0;">
+                      <div id="file-name-display" style="font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                      <div id="file-meta-display" class="mono-text text-dim"></div>
+                    </div>
+                    <button type="button" class="btn-core btn-secondary btn-sm" onclick="clearSelectedFile()">Change</button>
+                  </div>
+                </div>
+
+                <!-- YOLO Confidence Threshold -->
+                <div class="form-group" style="margin-top: 20px;">
+                  <div class="form-label">
+                    <span>YOLOv8 Detection Threshold</span>
+                    <span class="mono-text" style="color:var(--brand-blue); font-weight:700;" id="conf-val-readout">0.25</span>
+                  </div>
+                  <input type="range" id="field-confidence" min="0.10" max="0.85" step="0.05" value="0.25">
+                  <div class="flex-between text-dim" style="font-size:11px; margin-top:4px;">
+                    <span>Sensitive (0.10)</span>
+                    <span>Standard Balanced (0.25)</span>
+                    <span>Strict (0.85)</span>
+                  </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div style="margin-top: 24px;">
+                  <button type="submit" class="btn-core btn-primary" id="btn-run-detect" style="width:100%; padding:12px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    Run Neural Distress Analysis
+                  </button>
+                </div>
+              </form>
+
+              <!-- Live Processing Status -->
+              <div id="analysis-status-message" class="text-dim" style="font-size:12px; text-align:center; margin-top:12px;"></div>
+            </div>
+          </div>
+
+          <!-- Quick Tip Card -->
+          <div class="card-box" style="margin-top:16px; padding:16px; background:rgba(255,255,255,0.01);">
+            <div style="font-size:12px; font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+              <span>💡</span> Pro Tip for Evaluators &amp; Field Surveyors:
+            </div>
+            <p style="font-size:11.5px; color:var(--text-muted); margin-top:4px; line-height:1.5;">
+              If your photo already contains embedded GPS EXIF tags, the system will prioritize them automatically. Otherwise, the map pin you drop links the photo directly with that GIS point in the database.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────────
+       VIEW: GIS SURVEY MAP (STUDIO)
+  ──────────────────────────────────────────────────────────────────────── -->
+  <section id="view-map" class="view-panel">
+    <header class="view-header">
+      <div class="view-title-block">
+        <h2>GIS Field Inspection Studio</h2>
+        <p>Interactive spatial map of all road defect clusters and inspected locations</p>
+      </div>
+      <div class="view-actions">
+        <!-- Severity Filters -->
+        <div style="display:flex; background:var(--bg-elevated); padding:3px; border-radius:6px; border:1px solid var(--border-light);">
+          <button class="btn-core btn-secondary btn-sm" id="map-fil-all" onclick="filterMapBySeverity('all', this)">All</button>
+          <button class="btn-core btn-secondary btn-sm" id="map-fil-high" onclick="filterMapBySeverity('High', this)" style="color:var(--sev-high);">🔴 High</button>
+          <button class="btn-core btn-secondary btn-sm" id="map-fil-med" onclick="filterMapBySeverity('Medium', this)" style="color:var(--sev-med);">🟡 Medium</button>
+          <button class="btn-core btn-secondary btn-sm" id="map-fil-low" onclick="filterMapBySeverity('Low', this)" style="color:var(--sev-low);">🟢 Low</button>
+        </div>
+
+        <!-- Layer Selector -->
+        <div style="display:flex; background:var(--bg-elevated); padding:3px; border-radius:6px; border:1px solid var(--border-light);">
+          <button class="btn-core btn-secondary btn-sm" onclick="changeSurveyLayer('street')">🗺️ Streets</button>
+          <button class="btn-core btn-secondary btn-sm" onclick="changeSurveyLayer('satellite')">🛰️ Satellite</button>
+          <button class="btn-core btn-secondary btn-sm" onclick="changeSurveyLayer('dark')">🌙 Dark</button>
+        </div>
+
+        <button class="btn-core btn-secondary btn-sm" onclick="fitAllMapBounds()">Fit All</button>
+        <button class="btn-core btn-secondary btn-sm" id="btn-cluster-toggle" onclick="toggleMapClustering()">Cluster ON</button>
+      </div>
+    </header>
+
+    <div style="padding: 0 32px 20px;">
+      <div class="card-box" style="border-radius: var(--radius-md); overflow:hidden;">
+        <div id="survey-gis-map-canvas" style="height: calc(100vh - 190px); min-height: 520px; width: 100%;"></div>
+      </div>
+      
+      <!-- Footer Metadata Bar -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px; font-size:12px; color:var(--text-muted); flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:var(--sev-high); display:inline-block;"></span>
+            High Hazard
+          </span>
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:var(--sev-med); display:inline-block;"></span>
+            Medium Distress
+          </span>
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:var(--sev-low); display:inline-block;"></span>
+            Low Damage
+          </span>
+        </div>
+        <div id="gis-status-counter" class="mono-text">Loading locations...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────────
+       VIEW: INSPECTION LOG (REPORTS DATA TABLE)
+  ──────────────────────────────────────────────────────────────────────── -->
+  <section id="view-reports" class="view-panel">
+    <header class="view-header">
+      <div class="view-title-block">
+        <h2>Inspection Logs &amp; Audit Trail</h2>
+        <p id="reports-subtitle">Complete registry of road condition surveys and distress records</p>
+      </div>
+      <div class="view-actions">
+        <input type="text" id="reports-search-box" class="form-input" placeholder="🔍 Search road, defect, date..." style="width: 220px; padding: 6px 12px; font-size: 12.5px;">
+        <button class="btn-core btn-secondary btn-sm" onclick="exportReportsCSV()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+        <button class="btn-core btn-primary btn-sm" onclick="generateAuditPDF()">
+          📄 Export Audit PDF
+        </button>
+        <button class="btn-core btn-secondary btn-sm" onclick="window.print()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print Report
+        </button>
+        <button class="btn-core btn-danger btn-sm" onclick="confirmPurgeAllLogs()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Clear All
+        </button>
+      </div>
+    </header>
+
+    <div class="view-container">
+      <div class="card-box">
+        <!-- Empty State -->
+        <div id="reports-empty-state" style="display:none; padding: 60px 20px; text-align:center;">
+          <div style="font-size: 40px; margin-bottom: 12px; opacity: 0.6;">📋</div>
+          <div style="font-size: 16px; font-weight:700; color:#fff;">No Inspection Records Found</div>
+          <div style="font-size: 12.5px; color:var(--text-dim); margin-top:4px;">Perform a road scan in the Detection Studio to generate inspection entries.</div>
+          <button class="btn-core btn-primary btn-sm" style="margin-top:16px;" onclick="switchView('detect')">Launch Detection Studio</button>
+        </div>
+
+        <!-- Table View -->
+        <div class="table-responsive" id="reports-table-wrap">
+          <table class="enterprise-table" id="inspection-data-table">
+            <thead>
+              <tr>
+                <th style="width: 60px;">Imagery</th>
+                <th style="cursor:pointer;" onclick="sortReportsBy('time')">Date &amp; Time ↕</th>
+                <th>Location / Landmark</th>
+                <th>Classified Defects</th>
+                <th style="text-align:center; cursor:pointer;" onclick="sortReportsBy('count')">Count ↕</th>
+                <th style="cursor:pointer;" onclick="sortReportsBy('label')">Severity Index ↕</th>
+                <th>Coordinates</th>
+                <th>Source</th>
+                <th style="width: 80px; text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inspection-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────────────
+       VIEW: ANALYTICS & INTELLIGENCE
+  ──────────────────────────────────────────────────────────────────────── -->
+  <section id="view-analytics" class="view-panel">
+    <header class="view-header">
+      <div class="view-title-block">
+        <h2>Engineering Analytics &amp; Distress Intelligence</h2>
+        <p>Statistical distribution of pavement deterioration classes across field surveys</p>
+      </div>
+      <div class="view-actions">
+        <button class="btn-core btn-secondary btn-sm" onclick="fetchAndRenderAnalytics()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Refresh Statistics
+        </button>
+      </div>
+    </header>
+
+    <div class="view-container">
+      <!-- Defect Classification Cards -->
+      <div class="grid-cols-4" id="analytics-class-tiles" style="margin-bottom: 20px;">
+        <!-- Filled dynamically -->
+      </div>
+
+      <!-- Charts Row 1: Defect Breakdown (Horizontal Bar) & Severity (Donut) -->
+      <div class="grid-cols-2" style="margin-bottom: 20px;">
+        <div class="card-box">
+          <div class="card-box-header">
+            <div class="card-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Defect Distribution by Classification
+            </div>
+            <span class="mono-text text-muted" id="analytics-total-detections-tag">0 defects</span>
+          </div>
+          <div class="card-box-body">
+            <div style="height: 280px; position: relative;">
+              <canvas id="chart-defect-types"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="card-box-header">
+            <div class="card-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+              Pavement Severity Distribution
+            </div>
+            <span class="mono-text text-muted">Risk Profile</span>
+          </div>
+          <div class="card-box-body">
+            <div style="height: 280px; position: relative;">
+              <canvas id="chart-severity-donut"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row 2: Survey Volume Timeline & Pavement Health Index -->
+      <div class="grid-cols-2">
+        <div class="card-box">
+          <div class="card-box-header">
+            <div class="card-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Inspection Temporal Frequency
+            </div>
+            <span class="mono-text text-muted" id="timeline-resolution-tag">Daily</span>
+          </div>
+          <div class="card-box-body">
+            <div style="height: 220px; position: relative;">
+              <canvas id="chart-timeline"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Infrastructure Maintenance Advisory (Final Year Feature) -->
+        <div class="card-box">
+          <div class="card-box-header">
+            <div class="card-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Automated Maintenance Advisory
+            </div>
+            <span class="badge-tag neutral">Decision Support</span>
+          </div>
+          <div class="card-box-body" id="maintenance-advisory-content">
+            <!-- Rendered based on stats -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Lightbox Modal for full image review -->
+<div id="lightbox-modal" onclick="closeLightboxModal()">
+  <div class="modal-close-btn" onclick="closeLightboxModal()">✕</div>
+  <img id="lightbox-modal-img" alt="Enlarged Inspection Visual">
+</div>
+
+<!-- Printable / Downloadable PDF Dossier Modal -->
+<div id="pdf-dossier-modal">
+  <div class="pdf-modal-wrapper">
+    <div class="pdf-modal-toolbar no-print">
+      <div style="font-weight:700; font-size:14px; color:#fff; display:flex; align-items:center; gap:8px;">
+        <span>📄</span> <span id="pdf-modal-title">Engineering Inspection Dossier</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-core btn-primary btn-sm" id="btn-download-pdf-action" onclick="downloadCurrentPDF()">
+          ⬇ Download Official PDF
+        </button>
+        <button class="btn-core btn-secondary btn-sm" onclick="window.print()">
+          🖨️ Print
+        </button>
+        <button class="btn-core btn-secondary btn-sm" onclick="closePdfModal()">
+          ✕ Close
+        </button>
+      </div>
+    </div>
+    <div id="pdf-printable-area" class="pdf-document">
+      <!-- Generated dynamically -->
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     CORE LOGIC & APPLICATION SCRIPT
+══════════════════════════════════════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+'use strict';
+
+/* ── Global Constants & Canonical Dictionaries ────────────────────────── */
+const TILE_SERVERS = {
+  street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+};
+
+const CLASS_HUMAN_NAMES = {
+  'pothole': 'Pothole (D40)',
+  'alligator_crack': 'Alligator Crack (D20)',
+  'transverse_crack': 'Transverse Crack (D10)',
+  'longitudinal_crack': 'Longitudinal Crack (D00)'
+};
+
+const SEVERITY_COLORS = {
+  'High': '#ef4444',
+  'Medium': '#f59e0b',
+  'Low': '#10b981'
+};
+
+/* ── Application State ────────────────────────────────────────────────── */
+let currentView = 'overview';
+let allReports = [];
+let activeMarkerFilter = 'all';
+let clusteringEnabled = true;
+
+// Leaflet Map Instances
+let pickerMap, surveyMap, miniMap;
+let pickerTileLayer, surveyTileLayer;
+let pickerPinMarker = null;
+let surveyClusterGroup = null;
+let surveyDirectMarkers = [];
+
+// Chart.js Instances
+let chartDefectTypes = null;
+let chartSeverityDonut = null;
+let chartTimeline = null;
+
+// Table Sort State
+let currentSortKey = 'time';
+let sortDirection = -1; // -1 = desc, 1 = asc
+
+/* ── Utility Functions ────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+function setProgressBar(pct) {
+  $('action-progress-bar').style.width = pct + '%';
+}
+
+function showToast(message, type = 'info') {
+  const shelf = $('toast-shelf');
+  const bubble = document.createElement('div');
+  bubble.className = `toast-bubble ${type}`;
+  bubble.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span><span>${message}</span>`;
+  shelf.appendChild(bubble);
+  setTimeout(() => bubble.classList.add('show'), 10);
+  setTimeout(() => {
+    bubble.classList.remove('show');
+    setTimeout(() => bubble.remove(), 300);
+  }, 3500);
+}
+
+function expandLightboxModal(src) {
+  if (!src) return;
+  $('lightbox-modal-img').src = src;
+  $('lightbox-modal').classList.add('active');
+}
+
+function closeLightboxModal() {
+  $('lightbox-modal').classList.remove('active');
+}
+
+function formatCoords(lat, lon) {
+  if (lat == null || lon == null) return 'N/A';
+  return `${parseFloat(lat).toFixed(5)}, ${parseFloat(lon).toFixed(5)}`;
+}
+
+function getHumanLabel(type) {
+  return CLASS_HUMAN_NAMES[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getSeverityBadgeHTML(label) {
+  const norm = (label || 'low').toLowerCase();
+  const cls = norm === 'high' ? 'high' : norm === 'medium' || norm === 'med' ? 'med' : 'low';
+  return `<span class="badge-tag ${cls}">${label || 'Low'}</span>`;
+}
+
+/* ── View Navigation Controller ───────────────────────────────────────── */
+function switchView(targetName, btnEl, opts = {}) {
+  currentView = targetName;
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+
+  const viewEl = $(`view-${targetName}`);
+  if (viewEl) viewEl.classList.add('active');
+
+  const navBtn = btnEl || document.querySelector(`.nav-item[data-target="${targetName}"]`);
+  if (navBtn) navBtn.classList.add('active');
+
+  // Trigger leaflet map resizing because leaflet requires container dimensions
+  setTimeout(() => {
+    if (targetName === 'detect' && pickerMap) {
+      pickerMap.invalidateSize();
+    } else if (targetName === 'map' && surveyMap) {
+      surveyMap.invalidateSize();
+      if (!opts.skipFit) {
+        fitAllMapBounds();
+      }
+    } else if (targetName === 'overview' && miniMap) {
+      miniMap.invalidateSize();
+    } else if (targetName === 'analytics') {
+      fetchAndRenderAnalytics();
+    }
+  }, 120);
+}
+
+/* ── Initialize Maps ──────────────────────────────────────────────────── */
+function initAllMaps() {
+  const DEFAULT_CENTER = [18.5204, 73.8567]; // Pune, India standard demo hub
+
+  // 1. Step 1: Detect Map Picker
+  pickerMap = L.map('picker-map-canvas', { zoomControl: true }).setView(DEFAULT_CENTER, 12);
+  pickerTileLayer = L.tileLayer(TILE_SERVERS.street, { maxZoom: 19, attribution: '© OSM' }).addTo(pickerMap);
+
+  // Click on Picker Map
+  pickerMap.on('click', async e => {
+    const { lat, lng } = e.latlng;
+    placePinOnPickerMap(lat, lng);
+    await reverseGeocodeLocation(lat, lng);
+  });
+
+  // 2. GIS Survey Map
+  surveyMap = L.map('survey-gis-map-canvas', { zoomControl: true }).setView(DEFAULT_CENTER, 11);
+  surveyTileLayer = L.tileLayer(TILE_SERVERS.street, { maxZoom: 19, attribution: '© OSM' }).addTo(surveyMap);
+  surveyClusterGroup = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 45 });
+  surveyMap.addLayer(surveyClusterGroup);
+
+  // 3. Mini Overview Map
+  miniMap = L.map('overview-mini-map', {
+    zoomControl: false, dragging: true, scrollWheelZoom: false, attributionControl: false
+  }).setView(DEFAULT_CENTER, 11);
+  L.tileLayer(TILE_SERVERS.dark, { maxZoom: 19 }).addTo(miniMap);
+}
+
+function changePickerLayer(layerKey) {
+  if (!pickerMap || !pickerTileLayer) return;
+  pickerMap.removeLayer(pickerTileLayer);
+  pickerTileLayer = L.tileLayer(TILE_SERVERS[layerKey] || TILE_SERVERS.street, { maxZoom: 19 }).addTo(pickerMap);
+  showToast(`Switched map to ${layerKey} layer`, 'info');
+}
+
+function changeSurveyLayer(layerKey) {
+  if (!surveyMap || !surveyTileLayer) return;
+  surveyMap.removeLayer(surveyTileLayer);
+  surveyTileLayer = L.tileLayer(TILE_SERVERS[layerKey] || TILE_SERVERS.street, { maxZoom: 19 }).addTo(surveyMap);
+  showToast(`Switched survey studio to ${layerKey} layer`, 'info');
+}
+
+/* ── Picker Map Pinning & Reverse Geocoding ───────────────────────────── */
+function placePinOnPickerMap(lat, lon, zoomTo = false) {
+  if (pickerPinMarker) pickerMap.removeLayer(pickerPinMarker);
+
+  const customIcon = L.divIcon({
+    className: '',
+    html: '<div class="custom-picker-pin"></div>',
+    iconAnchor: [11, 11]
+  });
+
+  pickerPinMarker = L.marker([lat, lon], { icon: customIcon, draggable: true }).addTo(pickerMap);
+
+  // Update hidden form inputs
+  $('field-lat').value = lat;
+  $('field-lon').value = lon;
+
+  $('picker-coords-readout').textContent = formatCoords(lat, lon);
+  $('btn-clear-pin').style.display = 'inline-flex';
+
+  // Drag listener
+  pickerPinMarker.on('dragend', async ev => {
+    const pt = ev.target.getLatLng();
+    $('field-lat').value = pt.lat;
+    $('field-lon').value = pt.lng;
+    $('picker-coords-readout').textContent = formatCoords(pt.lat, pt.lng);
+    await reverseGeocodeLocation(pt.lat, pt.lng);
+  });
+
+  if (zoomTo) pickerMap.setView([lat, lon], 14);
+
+  // Update Lock Banner
+  $('location-status-banner').classList.remove('empty-state');
+  $('lock-icon-el').className = 'lock-icon';
+  $('lock-title-text').textContent = 'Location Linked to Upload';
+  $('lock-subtitle-text').textContent = `Lat: ${parseFloat(lat).toFixed(5)}, Lon: ${parseFloat(lon).toFixed(5)}`;
+}
+
+function updatePickerPinWithResult(rec, data) {
+  if (!pickerMap) return;
+  const lat = parseFloat(rec.lat);
+  const lon = parseFloat(rec.lon);
+
+  if (pickerPinMarker) pickerMap.removeLayer(pickerPinMarker);
+
+  const color = SEVERITY_COLORS[rec.overall.label] || '#3b82f6';
+  const customIcon = L.divIcon({
+    className: '',
+    html: `<div class="custom-picker-pin" style="background:${color}; box-shadow: 0 0 0 5px ${color}55, 0 4px 12px rgba(0,0,0,0.6);"></div>`,
+    iconAnchor: [11, 11]
+  });
+
+  pickerPinMarker = L.marker([lat, lon], { icon: customIcon }).addTo(pickerMap);
+
+  const typesHuman = (rec.types || []).map(getHumanLabel).join(', ') || 'No Defects (Good Road)';
+  const locTitle = rec.location_name || getFallbackLocationName(lat, lon);
+
+  pickerPinMarker.bindPopup(`
+    <div>
+      <img src="${rec.image}?t=${Date.now()}" class="popup-hero-img" onclick="expandLightboxModal('${rec.image}')" title="Click to zoom" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22280%22 height=%22140%22><rect width=%22100%%22 height=%22100%%22 fill=%22%23161c2d%22/><text x=%2250%%22 y=%2250%%22 fill=%22%2394a3b8%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2212%22>Road Image Available</text></svg>'">
+      <div class="popup-body">
+        <div class="popup-badge-row">
+          ${getSeverityBadgeHTML(rec.overall.label)}
+          <span class="mono-text text-dim">Score: ${rec.overall.score}</span>
+        </div>
+        <div style="font-size:14px; font-weight:800; color:#fff; margin-bottom:8px; display:flex; align-items:flex-start; gap:6px;">
+          <span style="color:#60a5fa; font-size:15px; line-height:1.2;">📍</span>
+          <span style="line-height:1.3;">${locTitle}</span>
+        </div>
+        <div class="popup-meta-item"><span>Defect Count</span><strong>${rec.count}</strong></div>
+        <div class="popup-meta-item"><span>Distress Types</span><strong>${typesHuman}</strong></div>
+        <div class="popup-meta-item"><span>Coordinates</span><span class="mono-text">${formatCoords(lat, lon)}</span></div>
+        <div style="margin-top:10px; display:flex; gap:6px;">
+          <button class="btn-core btn-primary btn-sm" style="flex:1; font-size:11.5px;" onclick="jumpToMapTarget('${rec.id}', ${lat}, ${lon})">
+            🗺️ Open in GIS Studio
+          </button>
+          <button class="btn-core btn-secondary btn-sm" style="font-size:11.5px;" onclick="generateSitePDF('${rec.id}')">
+            📄 PDF Report
+          </button>
+        </div>
+      </div>
+    </div>
+  `, { maxWidth: 280 }).openPopup();
+
+  pickerMap.panTo([lat, lon]);
+}
+
+function getFallbackLocationName(lat, lon) {
+  if (lat == null || lon == null) return 'Designated Road Corridor';
+  try {
+    lat = parseFloat(lat);
+    lon = parseFloat(lon);
+  } catch (e) {
+    return 'Designated Road Corridor';
+  }
+
+  const POIS = [
+    { name: 'Sinhagad Road, Vadgaon Budruk', lat: 18.4682, lon: 73.8241 },
+    { name: 'Law College Road, Erandwane', lat: 18.5132, lon: 73.8310 },
+    { name: 'Karve Road, Kothrud', lat: 18.5074, lon: 73.8077 },
+    { name: 'Senapati Bapat Road, Model Colony', lat: 18.5314, lon: 73.8340 },
+    { name: 'Magarpatta Bypass, Hadapsar', lat: 18.5089, lon: 73.9259 },
+    { name: 'Pune-Bangalore Highway NH48, Warje', lat: 18.4795, lon: 73.8012 },
+    { name: 'Nagar Road, Viman Nagar', lat: 18.5679, lon: 73.9143 },
+    { name: 'Paud Road, MIT College Corner', lat: 18.5147, lon: 73.8118 },
+    { name: 'Jangali Maharaj Road, Deccan', lat: 18.5204, lon: 73.8567 },
+    { name: 'Aundh-Baner Link Road', lat: 18.5590, lon: 73.8070 },
+    { name: 'Old Mumbai-Pune Highway, Khadki', lat: 18.5635, lon: 73.8402 },
+    { name: 'Fergusson College Road, Shivajinagar', lat: 18.5236, lon: 73.8418 },
+    { name: 'Rajgopalachari Chowk, Somwar Peth', lat: 18.5228, lon: 73.8896 },
+    { name: 'Hinjawadi IT Park Corridor', lat: 18.5913, lon: 73.7389 },
+    { name: 'Swargate Chowk, Pune', lat: 18.5018, lon: 73.8636 },
+    { name: 'Pune Station Road Corridor', lat: 18.5284, lon: 73.8744 },
+    { name: 'Mumbai-Pune Expressway Toll Corridor', lat: 18.7500, lon: 73.4000 },
+    { name: 'Seminary Hills, Nagpur', lat: 21.1710, lon: 79.0393 },
+    { name: 'Wardha Road, Nagpur', lat: 21.0900, lon: 79.0600 }
+  ];
+
+  let closest = null, minD = Infinity;
+  for (const p of POIS) {
+    const d = Math.hypot(p.lat - lat, p.lon - lon);
+    if (d < minD) {
+      minD = d;
+      closest = p;
+    }
+  }
+
+  if (closest && minD < 0.045) {
+    return closest.name;
+  }
+  return `Road Corridor (${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E)`;
+}
+
+let roadTagManuallyEdited = false;
+$('field-road-tag').addEventListener('input', () => {
+  roadTagManuallyEdited = true;
+});
+
+async function reverseGeocodeLocation(lat, lon) {
+  const fallback = getFallbackLocationName(lat, lon);
+  $('picker-address-readout').textContent = fallback;
+  $('field-location-name').value = fallback;
+  if (!roadTagManuallyEdited) {
+    $('field-road-tag').value = fallback;
+  }
+  $('lock-title-text').textContent = fallback;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+      signal: controller.signal,
+      headers: { 'Accept-Language': 'en-US,en', 'User-Agent': 'GeoPavementAI/2.4 student-project' }
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      const displayName = data.display_name || '';
+      const parts = displayName.split(',').map(s => s.trim()).filter(Boolean);
+      const shortAddress = parts.slice(0, 3).join(', ');
+
+      if (shortAddress) {
+        $('picker-address-readout').textContent = shortAddress;
+        $('field-location-name').value = shortAddress;
+        if (!roadTagManuallyEdited) {
+          $('field-road-tag').value = shortAddress;
+        }
+        $('lock-title-text').textContent = shortAddress;
+      }
+    }
+  } catch (err) {
+    // Fallback was already set above, so nothing to fail!
+  }
+}
+
+async function executeMapSearch() {
+  const query = ($('map-search-query').value || '').trim();
+  if (!query) return;
+  showToast(`Searching for "${query}"...`, 'info');
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, {
+      headers: { 'Accept-Language': 'en-US,en', 'User-Agent': 'GeoPavementAI/2.4' }
+    });
+    const items = await res.json();
+    if (!items || items.length === 0) {
+      showToast('Location not found. Try another search phrase.', 'error');
+      return;
+    }
+    const item = items[0];
+    const lat = parseFloat(item.lat);
+    const lon = parseFloat(item.lon);
+    pickerMap.setView([lat, lon], 14);
+    placePinOnPickerMap(lat, lon, true);
+    await reverseGeocodeLocation(lat, lon);
+    showToast(`Found: ${item.display_name.split(',')[0]}`, 'success');
+  } catch (err) {
+    showToast('Search query failed. Check network.', 'error');
+  }
+}
+
+$('map-search-query').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    executeMapSearch();
+  }
+});
+
+function resetLocationPin() {
+  if (pickerPinMarker) {
+    pickerMap.removeLayer(pickerPinMarker);
+    pickerPinMarker = null;
+  }
+  roadTagManuallyEdited = false;
+  $('field-lat').value = '';
+  $('field-lon').value = '';
+  $('field-location-name').value = '';
+  $('field-road-tag').value = '';
+  $('picker-coords-readout').textContent = 'Click anywhere on the map or search to place pin';
+  $('picker-address-readout').textContent = '';
+  $('btn-clear-pin').style.display = 'none';
+
+  $('location-status-banner').className = 'location-lock-banner empty-state';
+  $('lock-icon-el').className = 'lock-icon blue';
+  $('lock-title-text').textContent = 'No Location Pinned';
+  $('lock-subtitle-text').textContent = 'Click the map on the left to pin exact road location';
+}
+
+// Device GPS Hook
+$('btn-device-gps').onclick = () => {
+  if (!navigator.geolocation) {
+    showToast('Geolocation not supported by this browser.', 'error');
+    return;
+  }
+  showToast('Acquiring high-accuracy GPS coordinates...', 'info');
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const { latitude, longitude } = pos.coords;
+      pickerMap.setView([latitude, longitude], 15);
+      placePinOnPickerMap(latitude, longitude, true);
+      await reverseGeocodeLocation(latitude, longitude);
+      showToast('Device GPS locked successfully!', 'success');
+    },
+    err => {
+      showToast('GPS permission denied or timed out.', 'error');
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+};
+
+/* ── File Selection & Drag-and-Drop ───────────────────────────────────── */
+const fileInputEl = $('road-file-input');
+const dropzoneEl = $('upload-zone-box');
+
+['dragenter', 'dragover'].forEach(name => {
+  dropzoneEl.addEventListener(name, e => { e.preventDefault(); dropzoneEl.classList.add('drag-active'); });
+});
+['dragleave', 'drop'].forEach(name => {
+  dropzoneEl.addEventListener(name, e => { e.preventDefault(); dropzoneEl.classList.remove('drag-active'); });
+});
+
+dropzoneEl.addEventListener('drop', e => {
+  const dt = e.dataTransfer;
+  if (dt.files && dt.files[0]) {
+    fileInputEl.files = dt.files;
+    handleImageSelection(dt.files[0]);
+  }
+});
+
+fileInputEl.addEventListener('change', () => {
+  if (fileInputEl.files && fileInputEl.files[0]) {
+    handleImageSelection(fileInputEl.files[0]);
+  }
+});
+
+function handleImageSelection(file) {
+  if (!file.type.startsWith('image/')) {
+    showToast('Please select a valid image file (JPEG, PNG).', 'error');
+    return;
+  }
+  $('dropzone-text-title').textContent = file.name;
+  $('dropzone-text-sub').textContent = `${(file.size / 1024).toFixed(1)} KB · Ready to analyze`;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $('file-preview-img').src = ev.target.result;
+    $('file-name-display').textContent = file.name;
+    $('file-meta-display').textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB · Selected`;
+    $('file-selection-preview').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearSelectedFile() {
+  fileInputEl.value = '';
+  $('dropzone-text-title').textContent = 'Drag & drop road photo or browse';
+  $('dropzone-text-sub').textContent = 'Supports smartphone & dashcam inspection images (EXIF auto-detected)';
+  $('file-selection-preview').style.display = 'none';
+}
+
+/* ── Slider Hook ──────────────────────────────────────────────────────── */
+$('field-confidence').oninput = e => {
+  $('conf-val-readout').textContent = e.target.value;
+};
+
+/* ── Run AI Detection Form Submission ─────────────────────────────────── */
+$('road-detect-form').onsubmit = async e => {
+  e.preventDefault();
+  if (!fileInputEl.files || !fileInputEl.files[0]) {
+    showToast('Please choose or drop an inspection photo first.', 'error');
+    return;
+  }
+
+  const btn = $('btn-run-detect');
+  const statusEl = $('analysis-status-message');
+  btn.disabled = true;
+  btn.innerHTML = `<span style="display:inline-block; animation:spin 0.8s linear infinite;">⚡</span> Analyzing Neural Network...`;
+  statusEl.textContent = 'Uploading high-resolution road surface image...';
+  setProgressBar(20);
+
+  const formData = new FormData();
+  formData.append('file', fileInputEl.files[0]);
+  formData.append('conf', $('field-confidence').value);
+
+  // If user pinned location on map or entered manual road tag
+  const latVal = $('field-lat').value;
+  const lonVal = $('field-lon').value;
+  if (latVal && lonVal) {
+    formData.append('lat', latVal);
+    formData.append('lon', lonVal);
+  }
+
+  let customTag = ($('field-road-tag').value || $('field-location-name').value || '').trim();
+  if (!customTag && latVal && lonVal) {
+    customTag = getFallbackLocationName(parseFloat(latVal), parseFloat(lonVal));
+  }
+  if (customTag) {
+    formData.append('location_name', customTag);
+  }
+
+  let data;
+  try {
+    setProgressBar(50);
+    statusEl.textContent = 'Executing YOLOv8 inference & damage severity weighting...';
+
+    const res = await fetch('/api/detect', { method: 'POST', body: formData });
+    const text = await res.text();
+    setProgressBar(85);
+
+    try {
+      data = JSON.parse(text);
+    } catch (parseErr) {
+      statusEl.textContent = 'Server response parse error: ' + text.slice(0, 150);
+      resetDetectBtn();
+      return;
+    }
+
+    if (!res.ok) {
+      statusEl.textContent = data.detail || 'Inference failed on server.';
+      resetDetectBtn();
+      return;
+    }
+  } catch (netErr) {
+    statusEl.textContent = 'Network communication failure: ' + netErr.message;
+    resetDetectBtn();
+    return;
+  }
+
+  setProgressBar(100);
+  setTimeout(() => setProgressBar(0), 600);
+  statusEl.textContent = 'Analysis complete!';
+
+  // Render Result Card
+  const resultCard = $('detection-result-card');
+  resultCard.style.display = 'block';
+
+  $('result-annotated-img').src = data.image;
+  $('result-severity-pill').innerHTML = getSeverityBadgeHTML(data.overall.label);
+
+  if (data.count > 0) {
+    $('result-summary-text').innerHTML =
+      `Identified <span style="color:#60a5fa; font-size:15px;">${data.count}</span> road distress defect(s). Pavement condition: ${getSeverityBadgeHTML(data.overall.label)} (Score: ${data.overall.score})`;
+
+    $('result-detections-tbody').innerHTML = data.detections.map(d => {
+      const areaPct = (d.area_ratio * 100).toFixed(2);
+      const confPct = Math.round(d.confidence * 100);
+      return `<tr>
+        <td style="font-weight:700;">${getHumanLabel(d.type)}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:60px; height:5px; background:var(--bg-elevated); border-radius:3px; overflow:hidden;">
+              <div style="width:${confPct}%; height:100%; background:var(--brand-blue);"></div>
+            </div>
+            <span class="mono-text">${d.confidence} (${confPct}%)</span>
+          </div>
+        </td>
+        <td>${getSeverityBadgeHTML(d.severity)}</td>
+        <td class="mono-text text-dim">${areaPct}% of frame</td>
+      </tr>`;
+    }).join('');
+  } else {
+    $('result-summary-text').textContent = 'No structural pavement distress detected above the confidence threshold.';
+    $('result-detections-tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-dim); padding:16px;">Clean road surface detected.</td></tr>';
+  }
+
+  // First refresh data so the new report is immediately in allReports and markers
+  await refreshAllData();
+
+  // Hook jump to GIS map button & PDF export
+  if (data.record) {
+    const rec = data.record;
+    const finalLocation = rec.location_name || customTag || getFallbackLocationName(rec.lat, rec.lon);
+
+    // Update Result Card Location & Tag Badge
+    const badgeEl = $('result-location-badge');
+    if (badgeEl) {
+      badgeEl.style.display = 'flex';
+      $('result-location-name-text').textContent = finalLocation;
+      $('result-location-coords-text').textContent = `${formatCoords(rec.lat, rec.lon)} · Method: ${rec.loc_source.toUpperCase()}`;
+    }
+
+    $('btn-jump-survey-map').onclick = () => {
+      jumpToMapTarget(rec.id, rec.lat, rec.lon);
+    };
+    const exportPdfBtn = $('btn-export-detect-pdf');
+    if (exportPdfBtn) {
+      exportPdfBtn.style.display = 'inline-flex';
+      exportPdfBtn.onclick = () => generateSitePDF(rec.id);
+    }
+    showToast(`✓ Linked damage inspection with ${finalLocation}!`, 'success');
+    updatePickerPinWithResult(rec, data);
+  } else {
+    showToast('Clean road frame processed.', 'info');
+  }
+
+  resetDetectBtn();
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+function resetDetectBtn() {
+  const btn = $('btn-run-detect');
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run Neural Distress Analysis`;
+}
+
+/* ── Data Fetcher & Broadcasters ──────────────────────────────────────── */
+async function refreshAllData() {
+  try {
+    const res = await fetch('/api/records');
+    allReports = await res.json();
+    renderOverviewKPIs();
+    renderOverviewFeed();
+    renderSurveyMapMarkers();
+    renderInspectionTable();
+    updateMiniMapOverview();
+  } catch (err) {
+    console.error('Error refreshing reports:', err);
+  }
+}
+
+/* ── Overview Visuals ─────────────────────────────────────────────────── */
+function renderOverviewKPIs() {
+  const total = allReports.length;
+  const countHigh = allReports.filter(r => r.overall.label === 'High').length;
+  const countMed = allReports.filter(r => r.overall.label === 'Medium').length;
+  const countLow = allReports.filter(r => r.overall.label === 'Low').length;
+
+  let totalPotholes = 0;
+  allReports.forEach(r => {
+    if (r.types && r.types.includes('pothole')) totalPotholes += 1;
+  });
+
+  $('kpi-total-surveys').textContent = total;
+  $('kpi-high-severity').textContent = countHigh;
+  $('kpi-potholes-count').textContent = totalPotholes;
+  $('kpi-low-severity').textContent = countLow + countMed;
+
+  $('overview-datetime').textContent = new Date().toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  }) + ' · Live Telemetry';
+}
+
+function renderOverviewFeed() {
+  const container = $('overview-feed-list');
+  const recent = [...allReports].slice(0, 8); // already sorted desc by backend
+  if (recent.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 40px 20px; text-align: center; color: var(--text-dim);">
+        <div style="font-size: 32px; margin-bottom: 8px;">🛣️</div>
+        <div style="font-size: 13px; font-weight: 600;">No road inspections recorded yet</div>
+        <div style="font-size: 11.5px; margin-top: 4px;">Run an analysis in the Detection Studio to see live telemetry.</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = recent.map(r => {
+    const typesStr = (r.types || []).map(getHumanLabel).join(', ') || 'Unclassified';
+    const locStr = r.location_name || `${parseFloat(r.lat).toFixed(4)}, ${parseFloat(r.lon).toFixed(4)}`;
+    return `
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--border-subtle); cursor:pointer;" onclick="jumpToMapTarget('${r.id}', ${r.lat}, ${r.lon})" title="View in GIS Studio">
+        <img src="${r.image}" class="table-row-thumb" onclick="event.stopPropagation(); expandLightboxModal('${r.image}')" title="Click to enlarge" style="width:48px; height:36px;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${locStr}
+          </div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
+            ${r.time} · ${typesStr} (${r.count} defects)
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div>${getSeverityBadgeHTML(r.overall.label)}</div>
+          <button class="btn-core btn-secondary btn-icon-square" style="width:26px; height:26px; padding:0;" onclick="event.stopPropagation(); generateSitePDF('${r.id}')" title="Export PDF Dossier">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updateMiniMapOverview() {
+  if (!miniMap) return;
+  // Clear existing layers
+  miniMap.eachLayer(l => {
+    if (l instanceof L.CircleMarker) miniMap.removeLayer(l);
+  });
+
+  allReports.forEach(r => {
+    const col = SEVERITY_COLORS[r.overall.label] || '#94a3b8';
+    const cm = L.circleMarker([r.lat, r.lon], {
+      radius: 6, color: col, fillColor: col, fillOpacity: 0.85, weight: 1.5
+    }).addTo(miniMap);
+    cm.bindTooltip(`${r.location_name || 'Inspection Site'} (${r.overall.label})`, { direction: 'top' });
+    cm.on('click', () => jumpToMapTarget(r.id, r.lat, r.lon));
+  });
+
+  if (allReports.length > 0) {
+    miniMap.fitBounds(allReports.map(r => [r.lat, r.lon]), { padding: [24, 24], maxZoom: 14 });
+  }
+}
+
+/* ── GIS Survey Map Rendering ─────────────────────────────────────────── */
+function renderSurveyMapMarkers() {
+  if (!surveyMap || !surveyClusterGroup) return;
+
+  surveyClusterGroup.clearLayers();
+  surveyDirectMarkers.forEach(m => surveyMap.removeLayer(m));
+  surveyDirectMarkers = [];
+
+  const filtered = activeMarkerFilter === 'all'
+    ? allReports
+    : allReports.filter(r => r.overall.label === activeMarkerFilter);
+
+  $('gis-status-counter').textContent = `${filtered.length} locations mapped (${activeMarkerFilter} filter)`;
+
+  filtered.forEach(r => {
+    const color = SEVERITY_COLORS[r.overall.label] || '#94a3b8';
+    const markerIcon = L.divIcon({
+      className: '',
+      html: `<div class="map-marker-dot" id="marker-dot-${r.id}" style="background:${color}; box-shadow: 0 0 10px ${color};"></div>`,
+      iconAnchor: [7, 7]
+    });
+
+    const marker = L.marker([r.lat, r.lon], { icon: markerIcon });
+    marker.reportId = r.id;
+    marker.reportData = r;
+
+    const typesHuman = (r.types || []).map(getHumanLabel).join(', ') || 'No Defects (Good Road)';
+    const locTitle = r.location_name || getFallbackLocationName(r.lat, r.lon);
+
+    marker.bindPopup(`
+      <div>
+        <img src="${r.image}?t=${Date.now()}" class="popup-hero-img" onclick="expandLightboxModal('${r.image}')" title="Click to zoom" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22280%22 height=%22140%22><rect width=%22100%%22 height=%22100%%22 fill=%22%23161c2d%22/><text x=%2250%%22 y=%2250%%22 fill=%22%2394a3b8%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2212%22>Road Image Available</text></svg>'">
+        <div class="popup-body">
+          <div class="popup-badge-row">
+            ${getSeverityBadgeHTML(r.overall.label)}
+            <span class="mono-text text-dim">Score: ${r.overall.score}</span>
+          </div>
+          <div style="font-size:14px; font-weight:800; color:#fff; margin-bottom:8px; display:flex; align-items:flex-start; gap:6px;">
+            <span style="color:#60a5fa; font-size:15px; line-height:1.2;">📍</span>
+            <span style="line-height:1.3;">${locTitle}</span>
+          </div>
+          <div class="popup-meta-item"><span>Defect Types</span><strong>${typesHuman}</strong></div>
+          <div class="popup-meta-item"><span>Defect Count</span><strong>${r.count}</strong></div>
+          <div class="popup-meta-item"><span>Timestamp</span><strong>${r.time}</strong></div>
+          <div class="popup-meta-item"><span>Coordinates</span><span class="mono-text">${formatCoords(r.lat, r.lon)}</span></div>
+          <div style="margin-top:10px; display:flex; gap:6px;">
+            <button class="btn-core btn-secondary btn-sm" style="flex:1; font-size:11.5px;" onclick="generateSitePDF('${r.id}')">
+              📄 Export PDF Dossier
+            </button>
+            <button class="btn-core btn-secondary btn-sm" style="font-size:11.5px;" onclick="expandLightboxModal('${r.image}')" title="Enlarge">
+              🔍 Zoom
+            </button>
+          </div>
+        </div>
+      </div>
+    `, { maxWidth: 280 });
+
+    surveyDirectMarkers.push(marker);
+
+    if (clusteringEnabled) {
+      surveyClusterGroup.addLayer(marker);
+    } else {
+      marker.addTo(surveyMap);
+    }
+  });
+}
+
+function filterMapBySeverity(sev, btn) {
+  activeMarkerFilter = sev;
+  ['all', 'high', 'med', 'low'].forEach(k => {
+    const b = $(`map-fil-${k}`);
+    if (b) b.classList.remove('active');
+  });
+  if (btn) btn.classList.add('active');
+  renderSurveyMapMarkers();
+}
+
+function toggleMapClustering() {
+  clusteringEnabled = !clusteringEnabled;
+  $('btn-cluster-toggle').textContent = clusteringEnabled ? 'Cluster ON' : 'Cluster OFF';
+  renderSurveyMapMarkers();
+}
+
+function fitAllMapBounds() {
+  if (allReports.length > 0 && surveyMap) {
+    const bounds = allReports.map(r => [r.lat, r.lon]);
+    surveyMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+  }
+}
+
+function highlightMapMarker(marker) {
+  if (!marker) return;
+  const el = marker.getElement();
+  if (el) {
+    el.classList.add('highlight-pulse');
+    setTimeout(() => el.classList.remove('highlight-pulse'), 5000);
+  }
+}
+
+function jumpToMapTarget(reportId, lat, lon) {
+  // Support both jumpToMapTarget(lat, lon) and jumpToMapTarget(reportId, lat, lon)
+  if (typeof reportId === 'number') {
+    lon = lat;
+    lat = reportId;
+    reportId = null;
+  }
+
+  // Ensure all markers are visible by resetting severity filter
+  if (activeMarkerFilter !== 'all') {
+    activeMarkerFilter = 'all';
+    ['all', 'high', 'med', 'low'].forEach(k => {
+      const b = $(`map-fil-${k}`);
+      if (b) b.classList.toggle('active', k === 'all');
+    });
+    renderSurveyMapMarkers();
+  }
+
+  switchView('map', null, { skipFit: true });
+
+  const executeJump = () => {
+    if (!surveyMap) return;
+    surveyMap.invalidateSize();
+
+    let targetMarker = null;
+    if (reportId) {
+      targetMarker = surveyDirectMarkers.find(m => m.reportId === reportId);
+    }
+    if (!targetMarker && lat != null && lon != null) {
+      targetMarker = surveyDirectMarkers.find(m => {
+        const p = m.getLatLng();
+        return Math.abs(p.lat - lat) < 0.0025 && Math.abs(p.lng - lon) < 0.0025;
+      });
+    }
+
+    // If still not found, refresh markers and try once more
+    if (!targetMarker && allReports.length > 0) {
+      renderSurveyMapMarkers();
+      if (reportId) targetMarker = surveyDirectMarkers.find(m => m.reportId === reportId);
+      if (!targetMarker && lat != null && lon != null) {
+        targetMarker = surveyDirectMarkers.find(m => {
+          const p = m.getLatLng();
+          return Math.abs(p.lat - lat) < 0.0025 && Math.abs(p.lng - lon) < 0.0025;
+        });
+      }
+    }
+
+    if (targetMarker) {
+      const pos = targetMarker.getLatLng();
+      if (clusteringEnabled && surveyClusterGroup && surveyClusterGroup.hasLayer(targetMarker)) {
+        surveyClusterGroup.zoomToShowLayer(targetMarker, () => {
+          setTimeout(() => {
+            targetMarker.openPopup();
+            highlightMapMarker(targetMarker);
+          }, 80);
+        });
+      } else {
+        surveyMap.setView(pos, 16);
+        setTimeout(() => {
+          targetMarker.openPopup();
+          highlightMapMarker(targetMarker);
+        }, 80);
+      }
+    } else if (lat != null && lon != null) {
+      surveyMap.setView([lat, lon], 16);
+      showToast('Navigated to survey coordinates', 'info');
+    }
+  };
+
+  setTimeout(executeJump, 180);
+}
+
+/* ── Reports Table Rendering ──────────────────────────────────────────── */
+$('reports-search-box').oninput = renderInspectionTable;
+
+function sortReportsBy(key) {
+  if (currentSortKey === key) {
+    sortDirection *= -1;
+  } else {
+    currentSortKey = key;
+    sortDirection = -1;
+  }
+  renderInspectionTable();
+}
+
+function renderInspectionTable() {
+  const query = ($('reports-search-box').value || '').toLowerCase().trim();
+  let list = [...allReports];
+
+  if (query) {
+    list = list.filter(r =>
+      (r.location_name || '').toLowerCase().includes(query) ||
+      (r.time || '').toLowerCase().includes(query) ||
+      (r.overall.label || '').toLowerCase().includes(query) ||
+      (r.types || []).some(t => getHumanLabel(t).toLowerCase().includes(query))
+    );
+  }
+
+  // Sort
+  list.sort((a, b) => {
+    let valA = currentSortKey === 'label' ? a.overall.label : currentSortKey === 'count' ? a.count : a[currentSortKey];
+    let valB = currentSortKey === 'label' ? b.overall.label : currentSortKey === 'count' ? b.count : b[currentSortKey];
+    if (valA < valB) return -sortDirection;
+    if (valA > valB) return sortDirection;
+    return 0;
+  });
+
+  const emptyEl = $('reports-empty-state');
+  const tableEl = $('reports-table-wrap');
+  const tbody = $('inspection-table-body');
+
+  if (list.length === 0) {
+    emptyEl.style.display = 'block';
+    tableEl.style.display = 'none';
+    $('reports-subtitle').textContent = '0 records matching filter';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  tableEl.style.display = 'block';
+  $('reports-subtitle').textContent = `${list.length} survey entries logged`;
+
+  tbody.innerHTML = list.map(r => {
+    const typesStr = (r.types || []).map(getHumanLabel).join(', ') || 'Unclassified';
+    const locTitle = r.location_name ? `<strong>${r.location_name}</strong>` : `<span class="text-dim">Road Section</span>`;
+    return `
+      <tr>
+        <td>
+          <img src="${r.image}" class="table-row-thumb" onclick="expandLightboxModal('${r.image}')" title="View image">
+        </td>
+        <td class="mono-text" style="white-space:nowrap;">${r.time}</td>
+        <td>
+          <div style="font-size:13px; color:#fff;">${locTitle}</div>
+        </td>
+        <td style="font-size:12.5px;">${typesStr}</td>
+        <td style="text-align:center; font-weight:700;">${r.count}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${getSeverityBadgeHTML(r.overall.label)}
+            <span class="mono-text text-dim">${r.overall.score}</span>
+          </div>
+        </td>
+        <td>
+          <button class="btn-core btn-secondary btn-sm" style="font-family:'JetBrains Mono'; font-size:11px;" onclick="jumpToMapTarget('${r.id}', ${r.lat}, ${r.lon})" title="View on GIS Map">
+            📍 ${formatCoords(r.lat, r.lon)}
+          </button>
+        </td>
+        <td class="mono-text text-dim">${r.loc_source}</td>
+        <td style="text-align:right;">
+          <div style="display:inline-flex; gap:4px;">
+            <button class="btn-core btn-secondary btn-icon-square" onclick="generateSitePDF('${r.id}')" title="Export Site PDF Dossier">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </button>
+            <button class="btn-core btn-secondary btn-icon-square" onclick="jumpToMapTarget('${r.id}', ${r.lat}, ${r.lon})" title="Show on Map">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1,6 1,22 8,18 16,22 23,18 23,2 16,6 8,2"/></svg>
+            </button>
+            <button class="btn-core btn-danger btn-icon-square" onclick="deleteSingleInspection('${r.id}')" title="Delete Log">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function deleteSingleInspection(rid) {
+  if (!confirm(`Are you sure you want to delete inspection record ${rid}?`)) return;
+  try {
+    const res = await fetch(`/api/records/${rid}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Inspection entry deleted', 'success');
+      await refreshAllData();
+    } else {
+      showToast('Failed to delete inspection', 'error');
+    }
+  } catch (err) {
+    showToast('Network error during deletion', 'error');
+  }
+}
+
+async function confirmPurgeAllLogs() {
+  if (!confirm('DANGER: Delete ALL survey records and reset database? This cannot be undone.')) return;
+  try {
+    const res = await fetch('/api/records', { method: 'DELETE' });
+    if (res.ok) {
+      showToast('All survey logs purged successfully', 'success');
+      await refreshAllData();
+    }
+  } catch (err) {
+    showToast('Failed to clear database', 'error');
+  }
+}
+
+function exportReportsCSV() {
+  if (allReports.length === 0) {
+    showToast('No inspection records to export.', 'error');
+    return;
+  }
+  const headers = ['ID', 'Date_Time', 'Location_Name', 'Latitude', 'Longitude', 'Source', 'Defect_Count', 'Severity_Rating', 'Severity_Score', 'Classified_Distresses'];
+  const rows = allReports.map(r => [
+    r.id,
+    `"${r.time}"`,
+    `"${(r.location_name || '').replace(/"/g, '""')}"`,
+    r.lat,
+    r.lon,
+    r.loc_source,
+    r.count,
+    r.overall.label,
+    r.overall.score,
+    `"${(r.types || []).join(';')}"`
+  ]);
+  const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pavement_inspection_audit_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  showToast('Audit CSV exported successfully!', 'success');
+}
+
+/* ── Analytics & Data Visualization Studio ────────────────────────────── */
+async function fetchAndRenderAnalytics() {
+  try {
+    const res = await fetch('/api/stats');
+    const stats = await res.json();
+    renderAnalyticsCharts(stats);
+  } catch (err) {
+    console.error('Analytics load error:', err);
+    showToast('Unable to load analytics stats', 'error');
+  }
+}
+
+function renderAnalyticsCharts(stats) {
+  const byType = stats.by_type || {};
+  const bySev = stats.by_severity || {};
+  const totalDetections = stats.total_detections || 0;
+
+  $('analytics-total-detections-tag').textContent = `${totalDetections} total defect instances`;
+
+  // Render Defect Class Tiles
+  const classCardsHTML = [
+    { key: 'pothole', title: 'Potholes (D40)', count: byType['pothole'] || 0, color: '#ef4444' },
+    { key: 'alligator_crack', title: 'Alligator Cracks (D20)', count: byType['alligator_crack'] || 0, color: '#f59e0b' },
+    { key: 'transverse_crack', title: 'Transverse Cracks (D10)', count: byType['transverse_crack'] || 0, color: '#06b6d4' },
+    { key: 'longitudinal_crack', title: 'Longitudinal Cracks (D00)', count: byType['longitudinal_crack'] || 0, color: '#3b82f6' }
+  ].map(item => {
+    const pct = totalDetections > 0 ? Math.round((item.count / totalDetections) * 100) : 0;
+    return `
+      <div class="kpi-card" style="border-top: 3px solid ${item.color};">
+        <div class="kpi-label">${item.title}</div>
+        <div class="kpi-number" style="color:${item.color}; font-size:26px;">${item.count}</div>
+        <div class="kpi-detail">${pct}% of all identified distresses</div>
+      </div>`;
+  }).join('');
+  $('analytics-class-tiles').innerHTML = classCardsHTML;
+
+  // 1. Horizontal Bar Chart for Defect Types (Clean, canonical labels only)
+  const labels = ['Pothole (D40)', 'Alligator Crack (D20)', 'Transverse Crack (D10)', 'Longitudinal Crack (D00)'];
+  const counts = [
+    byType['pothole'] || 0,
+    byType['alligator_crack'] || 0,
+    byType['transverse_crack'] || 0,
+    byType['longitudinal_crack'] || 0
+  ];
+
+  if (chartDefectTypes) chartDefectTypes.destroy();
+  chartDefectTypes = new Chart($('chart-defect-types'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Defect Frequency',
+        data: counts,
+        backgroundColor: [
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(245, 158, 11, 0.8)',
+          'rgba(6, 182, 212, 0.8)',
+          'rgba(59, 130, 246, 0.8)'
+        ],
+        borderColor: ['#ef4444', '#f59e0b', '#06b6d4', '#3b82f6'],
+        borderWidth: 1.5,
+        borderRadius: 5
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw} occurrences (${totalDetections > 0 ? Math.round(ctx.raw / totalDetections * 100) : 0}%)`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } },
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          beginAtZero: true
+        },
+        y: {
+          ticks: { color: '#f8fafc', font: { family: 'Plus Jakarta Sans', size: 12, weight: 600 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // 2. Donut Chart for Severity Breakdown
+  const sevData = [
+    bySev['High'] || 0,
+    bySev['Medium'] || 0,
+    bySev['Low'] || 0
+  ];
+  const sevSum = sevData.reduce((a, b) => a + b, 0);
+
+  if (chartSeverityDonut) chartSeverityDonut.destroy();
+  chartSeverityDonut = new Chart($('chart-severity-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['High Severity', 'Medium Severity', 'Low Severity'],
+      datasets: [{
+        data: sevData,
+        backgroundColor: [
+          'rgba(239, 68, 68, 0.85)',
+          'rgba(245, 158, 11, 0.85)',
+          'rgba(16, 185, 129, 0.85)'
+        ],
+        borderColor: '#111624',
+        borderWidth: 3,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 }, padding: 14 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.raw} (${sevSum > 0 ? Math.round(ctx.raw / sevSum * 100) : 0}%)`
+          }
+        }
+      }
+    }
+  });
+
+  // 3. Temporal Timeline Chart
+  const dateMap = {};
+  allReports.forEach(r => {
+    const d = (r.time || '').split(' ')[0] || 'Unknown';
+    dateMap[d] = (dateMap[d] || 0) + 1;
+  });
+  const dateKeys = Object.keys(dateMap).sort();
+  const dateValues = dateKeys.map(k => dateMap[k]);
+
+  if (chartTimeline) chartTimeline.destroy();
+  chartTimeline = new Chart($('chart-timeline'), {
+    type: 'line',
+    data: {
+      labels: dateKeys.length ? dateKeys : ['Today'],
+      datasets: [{
+        label: 'Surveys Performed',
+        data: dateValues.length ? dateValues : [0],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: '#3b82f6',
+        pointRadius: 4,
+        tension: 0.35,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } },
+          grid: { color: 'rgba(255, 255, 255, 0.04)' }
+        },
+        y: {
+          ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 }, stepSize: 1 },
+          grid: { color: 'rgba(255, 255, 255, 0.04)' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  // 4. Decision Support / Engineering Advisory
+  const highSev = bySev['High'] || 0;
+  const potholes = byType['pothole'] || 0;
+  let advisoryHTML = `
+    <div style="font-size: 13px; line-height: 1.6; color: var(--text-main);">
+      <p style="margin-bottom: 10px;">
+        <strong>Asset Integrity Summary:</strong> The inspected road segments show a total of 
+        <span style="color:#60a5fa; font-weight:700;">${totalDetections}</span> pavement defects across 
+        <span style="font-weight:700;">${stats.total_reports || allReports.length}</span> survey locations.
+      </p>
+      <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid var(--sev-high); padding: 10px 14px; border-radius: 4px; margin-bottom: 10px;">
+        <div style="font-weight:700; color:var(--sev-high); font-size:12.5px;">Urgent Pavement Action Required:</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+          ${highSev} high-severity defect zones and ${potholes} potholes pose vehicular safety risks. Immediate asphalt cold-mix patching is recommended for these coordinates.
+        </div>
+      </div>
+      <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--sev-low); padding: 10px 14px; border-radius: 4px;">
+        <div style="font-weight:700; color:var(--sev-low); font-size:12.5px;">Routine Resurfacing Plan:</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+          ${byType['alligator_crack'] || 0} fatigue cracks and ${byType['transverse_crack'] || 0} transverse thermal cracks should be scheduled for bitumen crack-sealing to prevent moisture ingress into the sub-base.
+        </div>
+      </div>
+    </div>`;
+  $('maintenance-advisory-content').innerHTML = advisoryHTML;
+}
+
+/* ── PDF Engineering Report Generator (Site Dossier & City Audit) ─────── */
+let currentPdfFilename = 'Pavement_Audit_Report.pdf';
+
+function closePdfModal() {
+  const modal = $('pdf-dossier-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function downloadCurrentPDF() {
+  const element = $('pdf-printable-area');
+  if (!element) return;
+
+  showToast('Compiling high-resolution PDF document...', 'info');
+
+  if (typeof html2pdf !== 'undefined') {
+    const opt = {
+      margin:       [10, 10, 10, 10],
+      filename:     currentPdfFilename,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save().then(() => {
+      showToast('✓ PDF Audit Dossier downloaded successfully!', 'success');
+    }).catch(err => {
+      console.warn('html2pdf error, falling back to window.print', err);
+      window.print();
+    });
+  } else {
+    window.print();
+  }
+}
+
+async function generateSitePDF(reportId) {
+  try {
+    showToast('Fetching site telemetry & inspection data...', 'info');
+    const res = await fetch(`/api/records/${reportId}`);
+    if (!res.ok) throw new Error('Record not found');
+    const r = await res.json();
+
+    currentPdfFilename = `Pavement_Audit_Site_${r.id.toUpperCase()}_${(r.location_name || 'Road').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20)}.pdf`;
+    $('pdf-modal-title').textContent = `Inspection Dossier: #${r.id.toUpperCase()} — ${r.location_name || 'Road Site'}`;
+
+    const typesHuman = (r.types || []).map(getHumanLabel).join(', ') || 'Sound Pavement (No Active Distress)';
+    const color = SEVERITY_COLORS[r.overall.label] || '#10b981';
+
+    let detectionsTableHTML = '';
+    if (r.detections && r.detections.length > 0) {
+      detectionsTableHTML = r.detections.map((d, idx) => {
+        const areaPct = (d.area_ratio * 100).toFixed(2);
+        const confPct = Math.round(d.confidence * 100);
+        return `
+          <tr>
+            <td><strong>#${idx + 1}</strong></td>
+            <td><strong>${getHumanLabel(d.type)}</strong></td>
+            <td>${d.confidence} (${confPct}%)</td>
+            <td><span style="color:${SEVERITY_COLORS[d.severity] || '#333'}; font-weight:700;">${d.severity}</span></td>
+            <td>${areaPct}%</td>
+            <td>Score: ${d.score}</td>
+          </tr>`;
+      }).join('');
+    } else {
+      detectionsTableHTML = `<tr><td colspan="6" style="text-align:center; padding:14px; color:#64748b;">No structural defects identified. Pavement in acceptable operational condition.</td></tr>`;
+    }
+
+    // Recommendation based on severity
+    let actionRecommendation = '';
+    if (r.overall.label === 'High') {
+      actionRecommendation = '<strong>EMERGENCY INTERVENTION (Priority 1):</strong> High hazard pavement distress identified. Coordinates indicate structural risk to vehicles. Dispatch road maintenance crew within 24–48 hours for cold-mix bitumen patching and structural void compaction.';
+    } else if (r.overall.label === 'Medium') {
+      actionRecommendation = '<strong>SCHEDULED CORRECTIVE MAINTENANCE (Priority 2):</strong> Moderate pavement cracking/fatigue noted. Schedule for crack sealing with rubberized asphalt emulsion within 14 calendar days to avoid water seepage and base degradation.';
+    } else {
+      actionRecommendation = '<strong>ROUTINE MONITORING (Priority 3):</strong> Road surface in stable operational condition. Logged in GIS registry for periodic bi-monthly drone/telemetry re-inspection.';
+    }
+
+    const docHTML = `
+      <div class="pdf-header-banner">
+        <div>
+          <div class="pdf-org-title">Public Works &amp; Transportation Infrastructure Authority</div>
+          <div class="pdf-doc-title">PAVEMENT CONDITION AUDIT DOSSIER</div>
+          <div class="pdf-doc-sub">Autonomous Neural Distress Detection &amp; GIS Asset Management System</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px; font-weight:700; color:#64748b;">DOSSIER REF:</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:800; color:#2563eb;">#${r.id.toUpperCase()}</div>
+          <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">ISO 9001:2015 Compliant Audit</div>
+        </div>
+      </div>
+
+      <div class="pdf-meta-grid">
+        <div>
+          <div class="pdf-meta-cell-label">Location / Corridor</div>
+          <div class="pdf-meta-cell-value">${r.location_name || 'Designated Highway Section'}</div>
+        </div>
+        <div>
+          <div class="pdf-meta-cell-label">GPS Coordinates</div>
+          <div class="pdf-meta-cell-value" style="font-family:monospace;">${formatCoords(r.lat, r.lon)}</div>
+        </div>
+        <div>
+          <div class="pdf-meta-cell-label">Inspection Timestamp</div>
+          <div class="pdf-meta-cell-value">${r.time}</div>
+        </div>
+        <div>
+          <div class="pdf-meta-cell-label">Telemetry Source</div>
+          <div class="pdf-meta-cell-value" style="text-transform:uppercase;">${r.loc_source} GIS Sensor</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:16px; margin-bottom:24px;">
+        <div style="flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px 16px;">
+          <div class="pdf-meta-cell-label">Overall Severity Index</div>
+          <div style="font-size:20px; font-weight:800; color:${color}; margin-top:2px;">
+            ${r.overall.label.toUpperCase()} CONDITION
+          </div>
+        </div>
+        <div style="flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px 16px;">
+          <div class="pdf-meta-cell-label">Damage Rating Score</div>
+          <div style="font-size:20px; font-weight:800; color:#0f172a; margin-top:2px;">
+            ${r.overall.score} <span style="font-size:12px; color:#64748b; font-weight:500;">/ 10.0</span>
+          </div>
+        </div>
+        <div style="flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px 16px;">
+          <div class="pdf-meta-cell-label">Identified Defect Count</div>
+          <div style="font-size:20px; font-weight:800; color:#0f172a; margin-top:2px;">
+            ${r.count} <span style="font-size:12px; color:#64748b; font-weight:500;">Distress Points</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pdf-section-title">Optical Visual Evidence (YOLOv8 Neural Detection)</div>
+      <div class="pdf-img-container">
+        <img src="${r.image}?t=${Date.now()}" alt="Road Distress Imagery" crossorigin="anonymous">
+      </div>
+
+      <div class="pdf-section-title">Quantitative Defect Telemetry Breakdown</div>
+      <table class="pdf-table">
+        <thead>
+          <tr>
+            <th>Index</th>
+            <th>Distress Classification</th>
+            <th>Neural Confidence</th>
+            <th>Severity</th>
+            <th>Surface Area Ratio</th>
+            <th>Severity Metric</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${detectionsTableHTML}
+        </tbody>
+      </table>
+
+      <div class="pdf-section-title">Pavement Engineering Maintenance Recommendation</div>
+      <div class="pdf-advisory-box">
+        ${actionRecommendation}
+      </div>
+
+      <div class="pdf-sign-row">
+        <div class="pdf-sign-box">
+          <div class="pdf-sign-line"></div>
+          <div class="pdf-sign-label">Automated Survey Engine<br>YOLOv8 &amp; GIS Intelligence</div>
+        </div>
+        <div class="pdf-sign-box">
+          <div class="pdf-sign-line"></div>
+          <div class="pdf-sign-label">Field Highway Inspector<br>Certified Civil Surveyor</div>
+        </div>
+        <div class="pdf-sign-box">
+          <div class="pdf-sign-line"></div>
+          <div class="pdf-sign-label">Superintending Engineer<br>PWD Infrastructure Quality Cell</div>
+        </div>
+      </div>
+    `;
+
+    $('pdf-printable-area').innerHTML = docHTML;
+    $('pdf-dossier-modal').classList.add('active');
+  } catch (err) {
+    console.error('Error generating site PDF:', err);
+    showToast('Failed to generate site PDF: ' + err.message, 'error');
+  }
+}
+
+async function generateAuditPDF() {
+  try {
+    showToast('Compiling citywide pavement audit intelligence...', 'info');
+    const resStats = await fetch('/api/stats');
+    const stats = await resStats.json();
+
+    const byType = stats.by_type || {};
+    const bySev = stats.by_severity || {};
+    const totalReports = stats.total_reports || allReports.length;
+    const totalDetections = stats.total_detections || 0;
+
+    currentPdfFilename = `Citywide_Pavement_Audit_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+    $('pdf-modal-title').textContent = 'Citywide Pavement Infrastructure Audit Report';
+
+    const rowsHTML = allReports.map((r, idx) => {
+      const typesStr = (r.types || []).map(getHumanLabel).join(', ') || 'Clean Road';
+      const color = SEVERITY_COLORS[r.overall.label] || '#333';
+      return `
+        <tr>
+          <td><strong>#${idx + 1}</strong></td>
+          <td style="font-family:monospace; font-size:11px;">#${r.id.toUpperCase()}</td>
+          <td><strong>${r.location_name || 'Highway Corridor'}</strong></td>
+          <td style="font-family:monospace; font-size:10.5px;">${formatCoords(r.lat, r.lon)}</td>
+          <td>${typesStr}</td>
+          <td style="text-align:center;">${r.count}</td>
+          <td><span style="color:${color}; font-weight:700;">${r.overall.label}</span></td>
+          <td style="font-size:11px;">${r.time}</td>
+        </tr>`;
+    }).join('');
+
+    const docHTML = `
+      <div class="pdf-header-banner">
+        <div>
+          <div class="pdf-org-title">State Highways &amp; Municipal Urban Infrastructure</div>
+          <div class="pdf-doc-title">MUNICIPAL ROAD HEALTH &amp; DEFECT AUDIT REPORT</div>
+          <div class="pdf-doc-sub">Comprehensive GIS Pavement Condition Survey &amp; Resource Allocation Order</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px; font-weight:700; color:#64748b;">AUDIT CYCLE:</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:800; color:#2563eb;">${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}</div>
+          <div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">Published on ${new Date().toLocaleDateString()}</div>
+        </div>
+      </div>
+
+      <div class="pdf-meta-grid">
+        <div>
+          <div class="pdf-meta-cell-label">Total Survey Corridors</div>
+          <div class="pdf-meta-cell-value">${totalReports} Locations</div>
+        </div>
+        <div>
+          <div class="pdf-meta-cell-label">Total Defect Occurrences</div>
+          <div class="pdf-meta-cell-value" style="color:#2563eb;">${totalDetections} Distress Points</div>
+        </div>
+        <div>
+          <div class="pdf-meta-cell-label">Critical Hazard Points</div>
+          <div class="pdf-meta-cell-value" style="color:#ef4444;">${stats.high_severity_count || 0} High Priority</div>
+        </div>
+        <div>
+          <div class="pdf-meta-cell-label">Potholes Identified</div>
+          <div class="pdf-meta-cell-value" style="color:#f59e0b;">${stats.pothole_count || 0} D40 Depressions</div>
+        </div>
+      </div>
+
+      <div class="pdf-section-title">Defect Distribution by Engineering Classification</div>
+      <table class="pdf-table" style="margin-bottom:20px;">
+        <thead>
+          <tr>
+            <th>Distress Category</th>
+            <th>Standard Classification Code</th>
+            <th>Observed Occurrences</th>
+            <th>Proportion of Total</th>
+            <th>Standard Engineering Remediation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pothole</strong></td>
+            <td>D40 Structural Depression</td>
+            <td><strong>${byType['pothole'] || 0}</strong></td>
+            <td>${totalDetections > 0 ? Math.round((byType['pothole'] || 0) / totalDetections * 100) : 0}%</td>
+            <td>Cold-Mix / Warm-Mix Asphalt Patching &amp; Vibratory Compaction</td>
+          </tr>
+          <tr>
+            <td><strong>Alligator Crack</strong></td>
+            <td>D20 Structural Fatigue Cracking</td>
+            <td><strong>${byType['alligator_crack'] || 0}</strong></td>
+            <td>${totalDetections > 0 ? Math.round((byType['alligator_crack'] || 0) / totalDetections * 100) : 0}%</td>
+            <td>Full-depth Reclamation or Geotextile Membrane Overlay</td>
+          </tr>
+          <tr>
+            <td><strong>Transverse Crack</strong></td>
+            <td>D10 Thermal &amp; Joint Cracking</td>
+            <td><strong>${byType['transverse_crack'] || 0}</strong></td>
+            <td>${totalDetections > 0 ? Math.round((byType['transverse_crack'] || 0) / totalDetections * 100) : 0}%</td>
+            <td>Hot-Poured Rubberized Bituminous Sealant Injection</td>
+          </tr>
+          <tr>
+            <td><strong>Longitudinal Crack</strong></td>
+            <td>D00 Pavement Seam Deterioration</td>
+            <td><strong>${byType['longitudinal_crack'] || 0}</strong></td>
+            <td>${totalDetections > 0 ? Math.round((byType['longitudinal_crack'] || 0) / totalDetections * 100) : 0}%</td>
+            <td>High-Viscosity Emulsion Crack Routing &amp; Sealing</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pdf-section-title">Infrastructure Maintenance Resource Estimate</div>
+      <div class="pdf-advisory-box">
+        <strong>MATERIAL &amp; REPAIR PROCUREMENT FORECAST:</strong> Based on the registered ${stats.high_severity_count || 0} critical damage sections and ${stats.pothole_count || 0} potholes, estimated immediate asphalt procurement requirement is approximately <strong>${Math.max(1, Math.round((stats.pothole_count || 1) * 0.18))} metric tons</strong> of cold-patch asphalt mix. An estimated <strong>${Math.max(1, Math.round(((byType['alligator_crack'] || 0) + (byType['transverse_crack'] || 0)) * 12))} meters</strong> of polymeric crack sealant is required for sub-base moisture mitigation.
+      </div>
+
+      <div class="pdf-section-title">Complete Field Survey Telemetry Registry</div>
+      <table class="pdf-table" style="font-size:11px;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>ID</th>
+            <th>Road Section / Corridor</th>
+            <th>Coordinates</th>
+            <th>Distress Types</th>
+            <th>Count</th>
+            <th>Severity</th>
+            <th>Surveyed</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHTML}
+        </tbody>
+      </table>
+
+      <div class="pdf-sign-row">
+        <div class="pdf-sign-box">
+          <div class="pdf-sign-line"></div>
+          <div class="pdf-sign-label">Chief Data Officer<br>GIS Road Telemetry Cell</div>
+        </div>
+        <div class="pdf-sign-box">
+          <div class="pdf-sign-line"></div>
+          <div class="pdf-sign-label">Executive Highway Engineer<br>Asset Management Division</div>
+        </div>
+        <div class="pdf-sign-box">
+          <div class="pdf-sign-line"></div>
+          <div class="pdf-sign-label">Principal Secretary<br>Ministry of Urban Development</div>
+        </div>
+      </div>
+    `;
+
+    $('pdf-printable-area').innerHTML = docHTML;
+    $('pdf-dossier-modal').classList.add('active');
+  } catch (err) {
+    console.error('Error generating audit PDF:', err);
+    showToast('Failed to compile audit PDF: ' + err.message, 'error');
+  }
+}
+
+/* ── Boot Sequence ────────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  initAllMaps();
+  await refreshAllData();
+
+  // Auto-refresh every 30s to stay live
+  setInterval(refreshAllData, 30000);
+});
+</script>
+</body>
+</html>
